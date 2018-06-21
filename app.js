@@ -10,12 +10,17 @@ let Case = class Case {
 	constructor(position, size) {
 		this.position = position
 		this.size = size
+		this.wall = false
 
 		this.color = color(140, 140, 140)
 	}
 
 	update() {
-		
+		if(this.wall) {
+			this.color = color(255, 255, 255)
+		} else if(this.color == color(255, 255, 255)) {
+			this.color = color(140, 140, 140)
+		}
 	}
 
 	draw() {
@@ -42,7 +47,7 @@ let CaseAStar = class CaseAStar {
 
 	// nodeParentLocal + nodeParentDistance
 	calculateLocal() {
-		if(this.parent) {
+		if(this.parent != undefined) {
 			let parentLocal = this.parent.calculateLocal()
 			this.local = parentLocal + distanceBeetweenTwoCaseAStar(this, this.parent)
 		} else {
@@ -78,6 +83,7 @@ var open = []
 var close = []
 
 var finish = false
+var found = false
 
 var colorSave
 
@@ -100,7 +106,8 @@ function setup() {
 	// generate map
 	mapArray = generateMap(mapSize)
 
-	caseStart = mapArray[randomNumber(0, mapSize - 1)][randomNumber(0, mapSize - 1)]
+	// caseStart = mapArray[randomNumber(0, mapSize - 1)][randomNumber(0, mapSize - 1)]
+	caseStart = mapArray[1][1]
 	caseStart.color = colorSave.GREEN
 
 	do {
@@ -109,60 +116,18 @@ function setup() {
 	} while(caseStop === caseStart)
 	
 
-	let CaseAStarStart = new CaseAStar(caseStart)
-	let CaseAStarStop = new CaseAStar(caseStop)
-	
-	do {
-		let caseInTestAStar
+	calculateAStar()
+}
 
-		if(open.length == 0) {
-			caseInTestAStar = CaseAStarStart
-		} else {
-			caseInTestAStar = getLowestGlobalFromOpen()
-		}
 
-		let casesInTestArray = getCaseArround(caseInTestAStar)
-		for(let i = 0; i < casesInTestArray.length; i++) {
-			let caseInGeneration = casesInTestArray[i]
-			let caseAStarInGeneration = new CaseAStar(caseInGeneration)
+function mousePressed() {
+	let x = Math.floor(mouseX / caseSize)
+	let y = Math.floor(mouseY / caseSize)
 
-			caseAStarInGeneration.setParent(caseInTestAStar)
-			caseAStarInGeneration.calculateEuristic(CaseAStarStop)
-
-			caseAStarInGeneration.calculateLocal()
-			caseAStarInGeneration.calculateGlobal()
-
-			if(elementExistInArray(close, caseInGeneration) == false) {
-				open.push(caseAStarInGeneration)
-			} else {
-				for(let i = 0; i < open.length; i++) {
-					if(open[i].global > caseAStarInGeneration.global) {
-						if(open[i].position = caseInGeneration.position) {
-							open[i] = caseAStarInGeneration
-						}
-					}
-				}
-			}
-
-			if(caseAStarInGeneration.case == CaseAStarStop.case) {
-				finish = true
-				finalCaseAStar = caseAStarInGeneration
-				console.log("Solution found !")
-			}
-		}
-
-		open = removeElementFromArray(open, caseInTestAStar)
-		if(elementExistInArray(close, caseInTestAStar) == false) {
-			close.push(caseInTestAStar)
-		}
-
-		if(open.length <= 0) {
-			finish = true
-			console.log("Solution not found")
-		}
-
-		console.log("Open : " + open.length + " | close : " + close.length)
-	} while(finish == false)
+	if(mapArray[x] != undefined && mapArray[x][y] != undefined) {
+		mapArray[x][y].wall = !mapArray[x][y].wall
+		calculateAStar()
+	}
 }
 
 
@@ -185,15 +150,16 @@ function draw() {
 	}
 
 
-	let lastParentRender = finalCaseAStar
-	while(lastParentRender.parent != undefined) {
-		if(lastParentRender.case != caseStop) {
-			lastParentRender.case.color = colorSave.YELLOW
+	if(found) {
+		let lastParentRender = finalCaseAStar
+		while(lastParentRender.parent != undefined) {
+			if(lastParentRender.case != caseStop) {
+				lastParentRender.case.color = colorSave.YELLOW
+			}
+
+			lastParentRender = lastParentRender.parent
 		}
-
-		lastParentRender = lastParentRender.parent
 	}
-
 
 
 	for (let x = 0; x < mapArray.length; x++) {
@@ -204,6 +170,103 @@ function draw() {
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+function calculateAStar() {
+	let CaseAStarStart = new CaseAStar(caseStart)
+	let CaseAStarStop = new CaseAStar(caseStop)
+
+	open = []
+	close = []
+
+	finish = false
+	found = false
+
+	finalCaseAStar = undefined
+
+
+	//reset all colors
+	for(let x = 0; x < mapArray.length; x++) {
+		for(let y = 0; y < mapArray.length; y++) {
+			if(mapArray[x][y].color != colorSave.BLUE && mapArray[x][y].color != colorSave.GREEN && mapArray[x][y].color != color(255, 255, 255)) {
+				mapArray[x][y].color = color(140, 140, 140)
+			}
+		}
+	}
+	
+
+	do {
+		let caseInTestAStar
+
+		if(open.length == 0) {
+			caseInTestAStar = CaseAStarStart
+		} else {
+			caseInTestAStar = getLowestGlobalFromOpen()
+		}
+
+		if(caseInTestAStar != undefined) {
+			let casesInTestArray = getCaseAround(caseInTestAStar)
+			if(casesInTestArray.length > 0) {
+				for(let i = 0; i < casesInTestArray.length; i++) {
+					let caseInGeneration = casesInTestArray[i]
+					let caseAStarInGeneration = new CaseAStar(caseInGeneration)
+	
+					caseAStarInGeneration.setParent(caseInTestAStar)
+					caseAStarInGeneration.calculateEuristic(CaseAStarStop)
+	
+					caseAStarInGeneration.calculateLocal()
+					caseAStarInGeneration.calculateGlobal()
+	
+					if(elementExistInArray(close, caseAStarInGeneration) == false) {
+						open.push(caseAStarInGeneration)
+					} else {
+						for(let i = 0; i < open.length; i++) {
+							if(open[i].global > caseAStarInGeneration.global) {
+								if(open[i].position == caseInGeneration.position) {
+									open[i] = caseAStarInGeneration
+								}
+							}
+						}
+					}
+	
+					if(caseAStarInGeneration.case == CaseAStarStop.case) {
+						finish = true
+						found = true
+						finalCaseAStar = caseAStarInGeneration
+						console.log("Solution found !")
+					}
+				}
+			}
+			
+
+			if(elementExistInArray(close, caseInTestAStar) == false) {
+				close.push(caseInTestAStar)
+			}
+			open = removeElementFromArray(open, caseInTestAStar)
+		}
+		
+
+		if(open.length <= 0) {
+			finish = true
+			found = false
+			console.log("Solution not found")
+		}
+
+		//console.log("Open : " + open.length + " | close : " + close.length)
+	} while(finish == false)
+}
+
+
+
+
+
 
 
 function generateMap(size) {
@@ -239,20 +302,21 @@ function distanceBeetweenTwoCaseAStar(case1, case2) {
 	if(case1.case.position.y == case2.case.position.y)
 		return diffx
 
-	return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2)))
+	return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2))) + 1  // we add +1 to have a human result
 }
 
 
-function getCaseArround(caseCenter) {
+function getCaseAround(caseCenterAStar) {
 	let out = []
 	
-	for (let x = caseCenter.case.position.x - 1; x <= caseCenter.case.position.x + 1; x++) {
-		for (let y = caseCenter.case.position.y - 1; y <= caseCenter.case.position.y + 1; y++) {
-			if(mapArray[x] != undefined && mapArray[x][y] != undefined && mapArray[x][y] != caseCenter) {
+	for (let x = caseCenterAStar.case.position.x - 1; x <= caseCenterAStar.case.position.x + 1; x++) {
+		for (let y = caseCenterAStar.case.position.y - 1; y <= caseCenterAStar.case.position.y + 1; y++) {
+			if(mapArray[x] != undefined && mapArray[x][y] != undefined && mapArray[x][y].position != caseCenterAStar.case.position && mapArray[x][y].wall == false) {
 				out.push(mapArray[x][y])
 			}
 		}
 	}
+
 
 	return out
 }
@@ -286,7 +350,7 @@ function removeElementFromArray(arrayIn, element) {
 
 function elementExistInArray(arrayIn, element) {
 	for(let i = 0; i < arrayIn.length; i++) {
-		if(arrayIn[i].case.position == element.position) {
+		if(arrayIn[i].case.position == element.case.position) {
 			return true
 		}
 	}
