@@ -22,7 +22,7 @@ let Map = class Map {
 	randomLocation() {
 		let x = randomNumber(0, this.mapContent.length - 1)
 		let y = randomNumber(0, this.mapContent[x].length - 1)
-		return new Location(x, y)
+		return new Position2D(x, y)
 	}
 
 	randomCase() {
@@ -39,6 +39,7 @@ let Position2D = class Position2D {
 		this.y = y
 	}
 }
+
 
 
 let Case = class Case {
@@ -63,7 +64,41 @@ let Case = class Case {
 		noStroke()
 		renderRect(this.position, this.size)
 	}
+
+	calculateDistance(caseDestination) {
+		let diffx = Math.abs(this.position.x - caseDestination.position.x)
+		let diffy = Math.abs(this.position.y - caseDestination.position.y)
+	
+		if(this.position == caseDestination.position)
+			return 0
+	
+		if(this.position.x == caseDestination.position.x)
+			return diffy
+	
+		if(this.position.y == caseDestination.position.y)
+			return diffx
+	
+		return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2)))
+	}
+
+	getNeighbor(map) {
+		let out = []
+		
+		for (let x = this.position.x - 1; x <= this.position.x + 1; x++) {
+			for (let y = this.position.y - 1; y <= this.position.y + 1; y++) {
+				if(map.mapContent[x] != undefined 					  // eliminate undefined x row
+					&& map.mapContent[x][y] != undefined 			  // eliminate undefined y column
+					&& map.mapContent[x][y].position != this.position // eliminate himself from his neighbor
+					&& map.mapContent[x][y].wall == false) {		  // Don't take walls
+					out.push(map.mapContent[x][y])
+				}
+			}
+		}
+
+		return out
+	}
 }
+
 
 
 let CaseAStar = class CaseAStar {
@@ -76,7 +111,7 @@ let CaseAStar = class CaseAStar {
 	}
 
 	calculateEuristic(destination) {
-		this.euristic = distanceBeetweenTwoCaseAStar(this, destination)
+		this.euristic = this.calculateEuristicByDistance(destination)
 		return this.euristic
 	}
 
@@ -84,7 +119,7 @@ let CaseAStar = class CaseAStar {
 	calculateLocal() {
 		if(this.parent != undefined) {
 			let parentLocal = this.parent.calculateLocal()
-			this.local = parentLocal + distanceBeetweenTwoCaseAStar(this, this.parent)
+			this.local = parentLocal + this.calculateEuristic(this.parent)
 		} else {
 			this.local = 0
 		}
@@ -98,7 +133,24 @@ let CaseAStar = class CaseAStar {
 		this.global = this.euristic + this.local
 		return this.global
 	}
+
+	calculateEuristicByDistance(caseAStarDestination) {
+		let diffx = Math.abs(this.case.position.x - caseAStarDestination.case.position.x)
+		let diffy = Math.abs(this.case.position.y - caseAStarDestination.case.position.y)
+	
+		if(this.case.position == caseAStarDestination.case.position)
+			return 0
+	
+		if(this.case.position.x == caseAStarDestination.case.position.x)
+			return diffy
+	
+		if(this.case.position.y == caseAStarDestination.case.position.y)
+			return diffx
+	
+		return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2))) + 1  // we add +1 to have a human result
+	}
 }
+
 
 
 //nees that to not kill P5.js ES6 no support
@@ -109,7 +161,6 @@ function renderRect(position, size) {
 
 
 var caseSize = 25
-var mapSize = 20
 var mapInstance
 
 var caseStart, caseStop
@@ -156,7 +207,7 @@ function setup() {
 }
 
 
-function draw() { 
+function draw() {
 	background(0)   // Set the background to black
 	
 
@@ -201,7 +252,8 @@ function mousePressed() {
 	let x = Math.floor(mouseX / caseSize)
 	let y = Math.floor(mouseY / caseSize)
 
-	if(mapInstance.mapContent[x] != undefined && mapInstance.mapContent[x][y] != undefined) {
+	if(mapInstance.mapContent[x] != undefined 			// eliminate undefined x row
+		&& mapInstance.mapContent[x][y] != undefined) {	// eliminate undefined y column
 		mapInstance.mapContent[x][y].wall = !mapInstance.mapContent[x][y].wall
 		calculateAStar()
 	}
@@ -231,7 +283,9 @@ function calculateAStar() {
 	//reset all colors
 	for(let x = 0; x < mapInstance.mapContent.length; x++) {
 		for(let y = 0; y < mapInstance.mapContent.length; y++) {
-			if(mapInstance.mapContent[x][y].color != colorSave.BLUE && mapInstance.mapContent[x][y].color != colorSave.GREEN && mapInstance.mapContent[x][y].color != colorSave.WHITE) {
+			if(mapInstance.mapContent[x][y].color != colorSave.BLUE 
+				&& mapInstance.mapContent[x][y].color != colorSave.GREEN 
+				&& mapInstance.mapContent[x][y].color != colorSave.WHITE) {
 				mapInstance.mapContent[x][y].color = colorSave.GREY
 			}
 		}
@@ -248,36 +302,34 @@ function calculateAStar() {
 		}
 
 		if(caseInTestAStar != undefined) {
-			let casesInTestArray = getCaseAround(caseInTestAStar)
-			if(casesInTestArray.length > 0) {
-				for(let i = 0; i < casesInTestArray.length; i++) {
-					let caseInGeneration = casesInTestArray[i]
-					let caseAStarInGeneration = new CaseAStar(caseInGeneration)
-	
-					caseAStarInGeneration.setParent(caseInTestAStar)
-					caseAStarInGeneration.calculateEuristic(CaseAStarStop)
-	
-					caseAStarInGeneration.calculateLocal()
-					caseAStarInGeneration.calculateGlobal()
-	
-					if(elementExistInArray(close, caseAStarInGeneration) == false) {
-						open.push(caseAStarInGeneration)
-					} else {
-						for(let i = 0; i < open.length; i++) {
-							if(open[i].global > caseAStarInGeneration.global) {
-								if(open[i].position == caseInGeneration.position) {
-									open[i] = caseAStarInGeneration
-								}
+			let casesInTestArray = caseInTestAStar.case.getNeighbor(mapInstance)
+			for(let i = 0; i < casesInTestArray.length; i++) {
+				let caseInGeneration = casesInTestArray[i]
+				let caseAStarInGeneration = new CaseAStar(caseInGeneration)
+
+				caseAStarInGeneration.setParent(caseInTestAStar)
+				caseAStarInGeneration.calculateEuristic(CaseAStarStop)
+
+				caseAStarInGeneration.calculateLocal()
+				caseAStarInGeneration.calculateGlobal()
+
+				if(elementExistInArray(close, caseAStarInGeneration) == false) {
+					open.push(caseAStarInGeneration)
+				} else {
+					for(let i = 0; i < open.length; i++) {
+						if(open[i].global > caseAStarInGeneration.global) {
+							if(open[i].position == caseInGeneration.position) {
+								open[i] = caseAStarInGeneration
 							}
 						}
 					}
-	
-					if(caseAStarInGeneration.case == CaseAStarStop.case) {
-						finish = true
-						found = true
-						finalCaseAStar = caseAStarInGeneration
-						console.log("Solution found !")
-					}
+				}
+
+				if(caseAStarInGeneration.case == CaseAStarStop.case) {
+					finish = true
+					found = true
+					finalCaseAStar = caseAStarInGeneration
+					console.log("Solution found !")
 				}
 			}
 			
@@ -305,38 +357,6 @@ function randomNumber(min, max) {
 	return Math.floor(Math.random() * max) + min
 }
 
-
-function distanceBeetweenTwoCaseAStar(case1, case2) {
-	let diffx = Math.abs(case1.case.position.x - case2.case.position.x)
-	let diffy = Math.abs(case1.case.position.y - case2.case.position.y)
-
-	if(case1.case.position == case2.case.position)
-		return 0
-
-	if(case1.case.position.x == case2.case.position.x)
-		return diffy
-
-	if(case1.case.position.y == case2.case.position.y)
-		return diffx
-
-	return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2))) + 1  // we add +1 to have a human result
-}
-
-
-function getCaseAround(caseCenterAStar) {
-	let out = []
-	
-	for (let x = caseCenterAStar.case.position.x - 1; x <= caseCenterAStar.case.position.x + 1; x++) {
-		for (let y = caseCenterAStar.case.position.y - 1; y <= caseCenterAStar.case.position.y + 1; y++) {
-			if(mapInstance.mapContent[x] != undefined && mapInstance.mapContent[x][y] != undefined && mapInstance.mapContent[x][y].position != caseCenterAStar.case.position && mapInstance.mapContent[x][y].wall == false) {
-				out.push(mapInstance.mapContent[x][y])
-			}
-		}
-	}
-
-
-	return out
-}
 
 
 function getLowestGlobalFromOpen() {
