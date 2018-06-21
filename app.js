@@ -1,3 +1,38 @@
+let Map = class Map {
+	constructor(mapSize) {
+		this.mapSize = mapSize
+		this.mapContent = this.generate()
+	}
+
+	generate() {
+		let map = []
+  
+		for (let x = 0; x < this.mapSize; x++) {
+			map[x] = []
+			for (let y = 0; y < this.mapSize; y++) {
+				let position = new Position2D(x, y)
+				map[x][y] = new Case(position, caseSize)
+			}
+		}
+	
+		this.mapContent = map
+		return map
+	}
+
+	randomLocation() {
+		let x = randomNumber(0, this.mapContent.length - 1)
+		let y = randomNumber(0, this.mapContent[x].length - 1)
+		return new Location(x, y)
+	}
+
+	randomCase() {
+		let loc = this.randomLocation()
+		return this.mapContent[loc.x][loc.y]
+	}
+}
+
+
+
 let Position2D = class Position2D {
 	constructor(x, y) {
 		this.x = x
@@ -75,7 +110,7 @@ function renderRect(position, size) {
 
 var caseSize = 25
 var mapSize = 20
-var mapArray
+var mapInstance
 
 var caseStart, caseStop
 
@@ -92,11 +127,13 @@ var finalCaseAStar
 
 function setup() {
 	colorSave = {
-		GREEN: color(0, 255, 0),
-		BLUE: color(0, 0, 255),
-		RED: color(255, 0, 0),
-		YELLOW: color(232, 244, 0),
-		ORANGE: color(255,165,0)
+		GREEN: color(0, 255, 0),		// Start case
+		BLUE: color(0, 0, 255),			// Target case
+		RED: color(255, 0, 0),			// Case in close array
+		YELLOW: color(232, 244, 0),		// Path
+		ORANGE: color(255,165,0),		// Open when path is find
+		WHITE: color(255, 255, 255),	// Wall
+		GREY: color(140, 140, 140)		// Default case color
 	}
 
 	createCanvas(501, 501)
@@ -104,30 +141,18 @@ function setup() {
 	stroke(255) // Set line drawing color to white
 
 	// generate map
-	mapArray = generateMap(mapSize)
-
-	// caseStart = mapArray[randomNumber(0, mapSize - 1)][randomNumber(0, mapSize - 1)]
-	caseStart = mapArray[1][1]
+	mapInstance = new Map(20)
+	
+	caseStart = mapInstance.randomCase()
 	caseStart.color = colorSave.GREEN
 
 	do {
-		caseStop = mapArray[randomNumber(0, mapSize - 1)][randomNumber(0, mapSize - 1)]
+		caseStop = mapInstance.randomCase()
 		caseStop.color = colorSave.BLUE
 	} while(caseStop === caseStart)
 	
 
 	calculateAStar()
-}
-
-
-function mousePressed() {
-	let x = Math.floor(mouseX / caseSize)
-	let y = Math.floor(mouseY / caseSize)
-
-	if(mapArray[x] != undefined && mapArray[x][y] != undefined) {
-		mapArray[x][y].wall = !mapArray[x][y].wall
-		calculateAStar()
-	}
 }
 
 
@@ -162,12 +187,23 @@ function draw() {
 	}
 
 
-	for (let x = 0; x < mapArray.length; x++) {
-		for (let y = 0; y < mapArray[0].length; y++) {
-			let caseIntance = mapArray[x][y]
+	for (let x = 0; x < mapInstance.mapContent.length; x++) {
+		for (let y = 0; y < mapInstance.mapContent[0].length; y++) {
+			let caseIntance = mapInstance.mapContent[x][y]
 			caseIntance.update()
 			caseIntance.draw()
 		}
+	}
+}
+
+
+function mousePressed() {
+	let x = Math.floor(mouseX / caseSize)
+	let y = Math.floor(mouseY / caseSize)
+
+	if(mapInstance.mapContent[x] != undefined && mapInstance.mapContent[x][y] != undefined) {
+		mapInstance.mapContent[x][y].wall = !mapInstance.mapContent[x][y].wall
+		calculateAStar()
 	}
 }
 
@@ -193,10 +229,10 @@ function calculateAStar() {
 
 
 	//reset all colors
-	for(let x = 0; x < mapArray.length; x++) {
-		for(let y = 0; y < mapArray.length; y++) {
-			if(mapArray[x][y].color != colorSave.BLUE && mapArray[x][y].color != colorSave.GREEN && mapArray[x][y].color != color(255, 255, 255)) {
-				mapArray[x][y].color = color(140, 140, 140)
+	for(let x = 0; x < mapInstance.mapContent.length; x++) {
+		for(let y = 0; y < mapInstance.mapContent.length; y++) {
+			if(mapInstance.mapContent[x][y].color != colorSave.BLUE && mapInstance.mapContent[x][y].color != colorSave.GREEN && mapInstance.mapContent[x][y].color != colorSave.WHITE) {
+				mapInstance.mapContent[x][y].color = colorSave.GREY
 			}
 		}
 	}
@@ -265,25 +301,6 @@ function calculateAStar() {
 
 
 
-
-
-
-
-function generateMap(size) {
-	let map = []
-  
-	for (let x = 0; x < size; x++) {
-		map[x] = []
-		for (let y = 0; y < size; y++) {
-			let position = new Position2D(x, y)
-			map[x][y] = new Case(position, caseSize)
-		}
-	}
-
-	return map
-}
-
-
 function randomNumber(min, max) {
 	return Math.floor(Math.random() * max) + min
 }
@@ -311,8 +328,8 @@ function getCaseAround(caseCenterAStar) {
 	
 	for (let x = caseCenterAStar.case.position.x - 1; x <= caseCenterAStar.case.position.x + 1; x++) {
 		for (let y = caseCenterAStar.case.position.y - 1; y <= caseCenterAStar.case.position.y + 1; y++) {
-			if(mapArray[x] != undefined && mapArray[x][y] != undefined && mapArray[x][y].position != caseCenterAStar.case.position && mapArray[x][y].wall == false) {
-				out.push(mapArray[x][y])
+			if(mapInstance.mapContent[x] != undefined && mapInstance.mapContent[x][y] != undefined && mapInstance.mapContent[x][y].position != caseCenterAStar.case.position && mapInstance.mapContent[x][y].wall == false) {
+				out.push(mapInstance.mapContent[x][y])
 			}
 		}
 	}
