@@ -1,48 +1,3 @@
-let Map = class Map {
-	constructor(mapSize) {
-		this.mapSize = mapSize
-		this.mapContent = this.generate()
-	}
-
-	generate() {
-		let map = []
-  
-		for (let x = 0; x < this.mapSize; x++) {
-			map[x] = []
-			for (let y = 0; y < this.mapSize; y++) {
-				let position = new Position2D(x, y)
-				map[x][y] = new Case(position, caseSize)
-			}
-		}
-	
-		this.mapContent = map
-		return map
-	}
-
-	randomLocation() {
-		let x = randomNumber(0, this.mapContent.length - 1)
-		let y = randomNumber(0, this.mapContent[x].length - 1)
-		return new Position2D(x, y)
-	}
-
-	randomCase() {
-		let loc = this.randomLocation()
-		return this.mapContent[loc.x][loc.y]
-	}
-
-	clearCasesColor() {
-		//reset cases color
-		for(let x = 0; x < this.mapContent.length; x++) {
-			for(let y = 0; y < this.mapContent.length; y++) {
-				this.mapContent[x][y].clearColor()
-			}
-		}
-	}	
-	
-}
-
-
-
 let Position2D = class Position2D {
 	constructor(x, y) {
 		this.x = x
@@ -113,6 +68,51 @@ let Case = class Case {
 
 		return out
 	}
+}
+
+
+
+let Map = class Map {
+	constructor(mapSize) {
+		this.mapSize = mapSize
+		this.mapContent = this.generate()
+	}
+
+	generate() {
+		let map = []
+  
+		for (let x = 0; x < this.mapSize; x++) {
+			map[x] = []
+			for (let y = 0; y < this.mapSize; y++) {
+				let position = new Position2D(x, y)
+				map[x][y] = new Case(position, caseSize)
+			}
+		}
+	
+		this.mapContent = map
+		return map
+	}
+
+	randomLocation() {
+		let x = randomNumber(0, this.mapContent.length - 1)
+		let y = randomNumber(0, this.mapContent[x].length - 1)
+		return new Position2D(x, y)
+	}
+
+	randomCase() {
+		let loc = this.randomLocation()
+		return this.mapContent[loc.x][loc.y]
+	}
+
+	clearCasesColor() {
+		//reset cases color
+		for(let x = 0; x < this.mapContent.length; x++) {
+			for(let y = 0; y < this.mapContent.length; y++) {
+				this.mapContent[x][y].clearColor()
+			}
+		}
+	}	
+	
 }
 
 
