@@ -29,6 +29,16 @@ let Map = class Map {
 		let loc = this.randomLocation()
 		return this.mapContent[loc.x][loc.y]
 	}
+
+	clearCasesColor() {
+		//reset cases color
+		for(let x = 0; x < this.mapContent.length; x++) {
+			for(let y = 0; y < this.mapContent.length; y++) {
+				this.mapContent[x][y].clearColor()
+			}
+		}
+	}	
+	
 }
 
 
@@ -51,6 +61,12 @@ let Case = class Case {
 		this.color = color(140, 140, 140)
 	}
 
+	clearColor() {
+		if(!this.wall) {
+			this.color = colorSave.GREY
+		}
+	}
+	
 	update() {
 		if(this.wall) {
 			this.color = color(255, 255, 255)
@@ -81,7 +97,7 @@ let Case = class Case {
 		return Math.floor(Math.sqrt(Math.pow(diffx, 2) + Math.pow(diffy, 2)))
 	}
 
-	getNeighbor(map) {
+	getNeighbors(map) {
 		let out = []
 		
 		for (let x = this.position.x - 1; x <= this.position.x + 1; x++) {
@@ -152,29 +168,168 @@ let CaseAStar = class CaseAStar {
 }
 
 
+let aStar = class aStar {
+	constructor(map, caseStart, caseStop) {
+		this.map = map
+		this.caseStart = caseStart
+		this.caseStop = caseStop
 
+		this.open = []
+		this.close = []
+
+		this.finalCaseAStar = undefined
+
+		this.finish = false
+		this.found = false
+	}
+
+	addToOpen(CaseAStarInstance) {
+		if(elementExistInArray(this.close, CaseAStarInstance) == false) {
+			this.open.push(CaseAStarInstance)
+		} else {
+			for(let i = 0; i < this.open.length; i++) {
+				if(this.open[i].global > CaseAStarInstance.global) {
+					if(this.open[i].case.position == CaseAStarInstance.case.position) {
+						this.open[i] = CaseAStarInstance
+					}
+				}
+			}
+		}
+	}
+
+	addToClose(CaseAStarInstance) {
+		if(elementExistInArray(this.close, CaseAStarInstance) == false) {
+			this.close.push(CaseAStarInstance)
+		}
+	}
+
+	removeFromOpen(CaseAStarInstance) {
+		let out = []
+	
+		for(let i = 0; i < this.open.length; i++) {
+			if(this.open[i].case != CaseAStarInstance.case)
+				out.push(this.open[i])
+		}
+	
+		this.open = out
+		return out
+	}
+
+	getLowestGlobalFromOpen() {
+		let lowest
+		
+		for(let i = 0; i < this.open.length; i++) {
+			if(lowest == undefined 
+				|| lowest.global > this.open[i].global) {
+				lowest = this.open[i]
+			}
+		}
+	
+		return lowest
+	}
+
+	run() {
+		let CaseAStarStart = new CaseAStar(this.caseStart)
+		let CaseAStarStop = new CaseAStar(this.caseStop)
+	
+		this.open = []
+		this.close = []
+	
+		this.finish = false
+		this.found = false
+	
+		this.finalCaseAStar = undefined
+	
+
+		this.map.clearCasesColor() // reset color case before update path
+
+		
+		do {
+			let caseInTestAStar
+
+
+			if(this.open.length == 0) {
+				caseInTestAStar = CaseAStarStart
+			} else {
+				caseInTestAStar = this.getLowestGlobalFromOpen()
+			}
+
+
+			if(caseInTestAStar != undefined) {
+				let casesInTestArray = caseInTestAStar.case.getNeighbors(mapInstance)
+				for(let i = 0; i < casesInTestArray.length; i++) {
+					let caseInGeneration = casesInTestArray[i]
+					let caseAStarInGeneration = new CaseAStar(caseInGeneration)
+					
+					caseAStarInGeneration.setParent(caseInTestAStar)
+					caseAStarInGeneration.calculateEuristic(CaseAStarStop)
+					caseAStarInGeneration.calculateLocal()
+					caseAStarInGeneration.calculateGlobal()
+
+					this.addToOpen(caseAStarInGeneration)
+					
+
+					if(caseAStarInGeneration.case == this.caseStop) {
+						this.finish = true
+						this.found = true
+						this.finalCaseAStar = caseAStarInGeneration
+						console.log("Solution found !")
+					}
+				}
+				
+				this.addToClose(caseInTestAStar)
+				this.removeFromOpen(caseInTestAStar)
+			}
+			
+	
+			if(this.open.length <= 0) {
+				this.finish = true
+				this.found = false
+				console.log("Solution not found")
+			}
+
+			//console.log("Open : " + this.open.length + " | close : " + this.close.length)
+		} while(this.finish == false)
+	}
+}
+
+
+
+
+/*
+* UTILS
+*/
 //nees that to not kill P5.js ES6 no support
 function renderRect(position, size) {
 	rect(position.x * size + 1, position.y * size + 1, size - 1, size - 1)
 }
 
 
+function randomNumber(min, max) {
+	return Math.floor(Math.random() * max) + min
+}
 
+function elementExistInArray(arrayIn, element) {
+	for(let i = 0; i < arrayIn.length; i++) {
+		if(arrayIn[i].case.position == element.case.position) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+
+
+
+/*
+* Main program
+*/
 var caseSize = 25
 var mapInstance
-
-var caseStart, caseStop
-
-var open = []
-var close = []
-
-var finish = false
-var found = false
+var aStarInstance
 
 var colorSave
-
-var finalCaseAStar
-
 
 function setup() {
 	colorSave = {
@@ -194,16 +349,16 @@ function setup() {
 	// generate map
 	mapInstance = new Map(20)
 	
-	caseStart = mapInstance.randomCase()
-	caseStart.color = colorSave.GREEN
+	let caseStart = mapInstance.randomCase()
 
+	let caseStop
 	do {
 		caseStop = mapInstance.randomCase()
-		caseStop.color = colorSave.BLUE
 	} while(caseStop === caseStart)
 	
 
-	calculateAStar()
+	aStarInstance = new aStar(mapInstance, caseStart, caseStop)
+	aStarInstance.run()
 }
 
 
@@ -212,30 +367,33 @@ function draw() {
 	
 
 	// modification des couleurs
-	for(let i = 0; i < open.length; i++) {
-		let caseToDraw = open[i].case
-		if(caseToDraw != caseStart && caseToDraw != caseStop)
-			open[i].case.color = colorSave.ORANGE
+	for(let i = 0; i < aStarInstance.open.length; i++) {
+		let caseToDraw = aStarInstance.open[i].case
+		if(caseToDraw != aStarInstance.caseStart && caseToDraw != aStarInstance.caseStop)
+			aStarInstance.open[i].case.color = colorSave.ORANGE
 	}
 
 
-	for(let i = 0; i < close.length; i++) {
-		let caseToDraw = close[i].case
-		if(caseToDraw != caseStart && caseToDraw != caseStop)
-			close[i].case.color = colorSave.RED
+	for(let i = 0; i < aStarInstance.close.length; i++) {
+		let caseToDraw = aStarInstance.close[i].case
+		if(caseToDraw != aStarInstance.caseStart && caseToDraw != aStarInstance.caseStop)
+			aStarInstance.close[i].case.color = colorSave.RED
 	}
 
 
-	if(found) {
-		let lastParentRender = finalCaseAStar
+	if(aStarInstance.found) {
+		let lastParentRender = aStarInstance.finalCaseAStar
 		while(lastParentRender.parent != undefined) {
-			if(lastParentRender.case != caseStop) {
+			if(lastParentRender.case != aStarInstance.caseStop) {
 				lastParentRender.case.color = colorSave.YELLOW
 			}
 
 			lastParentRender = lastParentRender.parent
 		}
 	}
+
+	aStarInstance.caseStart.color = colorSave.GREEN
+	aStarInstance.caseStop.color = colorSave.BLUE
 
 
 	for (let x = 0; x < mapInstance.mapContent.length; x++) {
@@ -255,142 +413,6 @@ function mousePressed() {
 	if(mapInstance.mapContent[x] != undefined 			// eliminate undefined x row
 		&& mapInstance.mapContent[x][y] != undefined) {	// eliminate undefined y column
 		mapInstance.mapContent[x][y].wall = !mapInstance.mapContent[x][y].wall
-		calculateAStar()
+		aStarInstance.run()
 	}
-}
-
-
-
-
-
-
-
-
-
-function calculateAStar() {
-	let CaseAStarStart = new CaseAStar(caseStart)
-	let CaseAStarStop = new CaseAStar(caseStop)
-
-	open = []
-	close = []
-
-	finish = false
-	found = false
-
-	finalCaseAStar = undefined
-
-
-	//reset all colors
-	for(let x = 0; x < mapInstance.mapContent.length; x++) {
-		for(let y = 0; y < mapInstance.mapContent.length; y++) {
-			if(mapInstance.mapContent[x][y].color != colorSave.BLUE 
-				&& mapInstance.mapContent[x][y].color != colorSave.GREEN 
-				&& mapInstance.mapContent[x][y].color != colorSave.WHITE) {
-				mapInstance.mapContent[x][y].color = colorSave.GREY
-			}
-		}
-	}
-	
-
-	do {
-		let caseInTestAStar
-
-		if(open.length == 0) {
-			caseInTestAStar = CaseAStarStart
-		} else {
-			caseInTestAStar = getLowestGlobalFromOpen()
-		}
-
-		if(caseInTestAStar != undefined) {
-			let casesInTestArray = caseInTestAStar.case.getNeighbor(mapInstance)
-			for(let i = 0; i < casesInTestArray.length; i++) {
-				let caseInGeneration = casesInTestArray[i]
-				let caseAStarInGeneration = new CaseAStar(caseInGeneration)
-
-				caseAStarInGeneration.setParent(caseInTestAStar)
-				caseAStarInGeneration.calculateEuristic(CaseAStarStop)
-
-				caseAStarInGeneration.calculateLocal()
-				caseAStarInGeneration.calculateGlobal()
-
-				if(elementExistInArray(close, caseAStarInGeneration) == false) {
-					open.push(caseAStarInGeneration)
-				} else {
-					for(let i = 0; i < open.length; i++) {
-						if(open[i].global > caseAStarInGeneration.global) {
-							if(open[i].position == caseInGeneration.position) {
-								open[i] = caseAStarInGeneration
-							}
-						}
-					}
-				}
-
-				if(caseAStarInGeneration.case == CaseAStarStop.case) {
-					finish = true
-					found = true
-					finalCaseAStar = caseAStarInGeneration
-					console.log("Solution found !")
-				}
-			}
-			
-
-			if(elementExistInArray(close, caseInTestAStar) == false) {
-				close.push(caseInTestAStar)
-			}
-			open = removeElementFromArray(open, caseInTestAStar)
-		}
-		
-
-		if(open.length <= 0) {
-			finish = true
-			found = false
-			console.log("Solution not found")
-		}
-
-		//console.log("Open : " + open.length + " | close : " + close.length)
-	} while(finish == false)
-}
-
-
-
-function randomNumber(min, max) {
-	return Math.floor(Math.random() * max) + min
-}
-
-
-
-function getLowestGlobalFromOpen() {
-	let lowest
-	
-	for(let i = 0; i < open.length; i++) {
-		if(!lowest || lowest.global > open[i].global) {
-			lowest = open[i]
-		}
-	}
-
-	return lowest
-}
-
-
-function removeElementFromArray(arrayIn, element) {
-	let out = []
-
-	for(let i = 0; i < arrayIn.length; i++) {
-		if(arrayIn[i].case.position != element.case.position) {
-			out.push(arrayIn[i])
-		}
-	}
-
-	return out
-}
-
-
-function elementExistInArray(arrayIn, element) {
-	for(let i = 0; i < arrayIn.length; i++) {
-		if(arrayIn[i].case.position == element.case.position) {
-			return true
-		}
-	}
-
-	return false
 }
