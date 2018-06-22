@@ -13,21 +13,19 @@ let Case = class Case {
 		this.size = size
 		this.wall = false
 
-		this.color = color(140, 140, 140)
+		this.color = colorSave.GREY
 	}
 
 	clearColor() {
 		if(!this.wall) {
 			this.color = colorSave.GREY
+		} else {
+			this.color = colorSave.WHITE
 		}
 	}
 	
 	update() {
-		if(this.wall) {
-			this.color = color(255, 255, 255)
-		} else if(this.color == color(255, 255, 255)) {
-			this.color = color(140, 140, 140)
-		}
+		
 	}
 
 	draw() {
