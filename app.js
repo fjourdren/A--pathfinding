@@ -174,6 +174,10 @@ let aStar = class aStar {
 		this.caseStart = caseStart
 		this.caseStop = caseStop
 
+		this.timeRunStart = new Date().getTime()
+		this.timeRunStop = undefined
+		this.timeRun = undefined
+
 		this.open = []
 		this.close = []
 
@@ -181,6 +185,16 @@ let aStar = class aStar {
 
 		this.finish = false
 		this.found = false
+	}
+
+	time() {
+		return new Date().getTime()
+	}
+
+	calculateTimeToRender() {
+		let out = this.time() - this.timeRunStart
+		this.timeRun = out
+		return out
 	}
 
 	addToOpen(CaseAStarInstance) {
@@ -229,6 +243,8 @@ let aStar = class aStar {
 	}
 
 	run() {
+		this.timeRunStart = this.time()
+
 		let CaseAStarStart = new CaseAStar(this.caseStart)
 		let CaseAStarStop = new CaseAStar(this.caseStop)
 	
@@ -257,8 +273,7 @@ let aStar = class aStar {
 
 			if(caseInTestAStar != undefined) {
 				let casesInTestArray = caseInTestAStar.case.getNeighbors(mapInstance)
-				for(let i = 0; i < casesInTestArray.length; i++) {
-					let caseInGeneration = casesInTestArray[i]
+				casesInTestArray.forEach(async (caseInGeneration) => {
 					let caseAStarInGeneration = new CaseAStar(caseInGeneration)
 					
 					caseAStarInGeneration.setParent(caseInTestAStar)
@@ -275,7 +290,7 @@ let aStar = class aStar {
 						this.finalCaseAStar = caseAStarInGeneration
 						console.log("Solution found !")
 					}
-				}
+				})
 				
 				this.addToClose(caseInTestAStar)
 				this.removeFromOpen(caseInTestAStar)
@@ -290,6 +305,9 @@ let aStar = class aStar {
 
 			//console.log("Open : " + this.open.length + " | close : " + this.close.length)
 		} while(this.finish == false)
+
+
+		this.calculateTimeToRender()
 	}
 }
 
@@ -402,6 +420,14 @@ function draw() {
 			caseIntance.update()
 			caseIntance.draw()
 		}
+	}
+
+
+
+	if(aStarInstance.timeRun != undefined) {
+		document.getElementById("timeToRunPathFinder").innerHTML = aStarInstance.timeRun + "ms to search a path"
+	} else {
+		document.getElementById("timeToRunPathFinder").innerHTML = ""
 	}
 }
 
