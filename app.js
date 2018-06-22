@@ -178,8 +178,8 @@ let aStar = class aStar {
 		this.timeRunStop = undefined
 		this.timeRun = undefined
 
-		this.open = []
-		this.close = []
+		this.open = []	// array of cases to process
+		this.close = []	// array of cases already processed
 
 		this.finalCaseAStar = undefined
 
@@ -264,14 +264,16 @@ let aStar = class aStar {
 			let caseInTestAStar
 
 
+			// find the next CaseAStar to process
 			if(this.open.length == 0) {
 				caseInTestAStar = CaseAStarStart
 			} else {
-				caseInTestAStar = this.getLowestGlobalFromOpen()
+				caseInTestAStar = this.getLowestGlobalFromOpen() // Select closest from the target in Open array thanks to his global value
 			}
 
 
 			if(caseInTestAStar != undefined) {
+				// generate/update his neighbors caseAstar and add/update it in open array
 				let casesInTestArray = caseInTestAStar.case.getNeighbors(mapInstance)
 				casesInTestArray.forEach(async (caseInGeneration) => {
 					let caseAStarInGeneration = new CaseAStar(caseInGeneration)
@@ -283,7 +285,7 @@ let aStar = class aStar {
 
 					this.addToOpen(caseAStarInGeneration)
 					
-
+					// check if we have solved a path
 					if(caseAStarInGeneration.case == this.caseStop) {
 						this.finish = true
 						this.found = true
@@ -292,11 +294,13 @@ let aStar = class aStar {
 					}
 				})
 				
+				// add CaseAStar processed into close array and remove it from open array
 				this.addToClose(caseInTestAStar)
 				this.removeFromOpen(caseInTestAStar)
 			}
 			
 	
+			// check if open array is empty. If it is, any solution exists
 			if(this.open.length <= 0) {
 				this.finish = true
 				this.found = false
@@ -307,6 +311,7 @@ let aStar = class aStar {
 		} while(this.finish == false)
 
 
+		// Calculate time we took to run the search algorithm
 		this.calculateTimeToRender()
 	}
 }
@@ -317,7 +322,7 @@ let aStar = class aStar {
 /*
 * UTILS
 */
-//nees that to not kill P5.js ES6 no support
+// need that to not kill P5.js ES6 no support
 function renderRect(position, size) {
 	rect(position.x * size + 1, position.y * size + 1, size - 1, size - 1)
 }
@@ -350,6 +355,7 @@ var aStarInstance
 var colorSave
 
 function setup() {
+	// need to be there because P5.js don't allow to use his function somewhere else than in his own function (ex: color)
 	colorSave = {
 		GREEN: color(0, 255, 0),		// Start case
 		BLUE: color(0, 0, 255),			// Target case
@@ -367,8 +373,10 @@ function setup() {
 	// generate map
 	mapInstance = new Map(20)
 	
+	// generate case Start
 	let caseStart = mapInstance.randomCase()
 
+	// generate case Stop different from the case Start 
 	let caseStop
 	do {
 		caseStop = mapInstance.randomCase()
@@ -384,7 +392,7 @@ function draw() {
 	background(0)   // Set the background to black
 	
 
-	// modification des couleurs
+	// Apply color to open array's cases
 	for(let i = 0; i < aStarInstance.open.length; i++) {
 		let caseToDraw = aStarInstance.open[i].case
 		if(caseToDraw != aStarInstance.caseStart && caseToDraw != aStarInstance.caseStop)
@@ -392,6 +400,7 @@ function draw() {
 	}
 
 
+	// Apply color to close array's cases
 	for(let i = 0; i < aStarInstance.close.length; i++) {
 		let caseToDraw = aStarInstance.close[i].case
 		if(caseToDraw != aStarInstance.caseStart && caseToDraw != aStarInstance.caseStop)
@@ -399,6 +408,7 @@ function draw() {
 	}
 
 
+	// if we have found a path, we render it by a recursive loop in final case's parents
 	if(aStarInstance.found) {
 		let lastParentRender = aStarInstance.finalCaseAStar
 		while(lastParentRender.parent != undefined) {
@@ -410,10 +420,12 @@ function draw() {
 		}
 	}
 
+	// change start and stop cases' color
 	aStarInstance.caseStart.color = colorSave.GREEN
 	aStarInstance.caseStop.color = colorSave.BLUE
 
 
+	// we run update and draw method from each cases
 	for (let x = 0; x < mapInstance.mapContent.length; x++) {
 		for (let y = 0; y < mapInstance.mapContent[0].length; y++) {
 			let caseIntance = mapInstance.mapContent[x][y]
@@ -423,7 +435,7 @@ function draw() {
 	}
 
 
-
+	// Update performance message
 	if(aStarInstance.timeRun != undefined) {
 		document.getElementById("timeToRunPathFinder").innerHTML = aStarInstance.timeRun + "ms to search a path"
 	} else {
@@ -432,6 +444,7 @@ function draw() {
 }
 
 
+// add a wall where mouse is pressed
 function mousePressed() {
 	let x = Math.floor(mouseX / caseSize)
 	let y = Math.floor(mouseY / caseSize)
